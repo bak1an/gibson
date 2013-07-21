@@ -1,0 +1,344 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <title>Gibson by evilsocket</title>
+
+    <link rel="stylesheet" href="stylesheets/styles.css">
+    <link rel="stylesheet" href="stylesheets/pygment_trac.css">
+    <script src="javascripts/scale.fix.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+    <!--[if lt IE 9]>
+    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+  </head>
+  <body>
+    <div class="wrapper">
+      <header>
+        <h1 class="header">Gibson</h1>
+        <p class="header">A high performance tree-based cache server.</p>
+
+        <ul>
+          <li class="download"><a class="buttons" href="https://github.com/evilsocket/gibson/zipball/master">Download ZIP</a></li>
+          <li class="download"><a class="buttons" href="https://github.com/evilsocket/gibson/tarball/master">Download TAR</a></li>
+          <li><a class="buttons github" href="https://github.com/evilsocket/gibson">View On GitHub</a></li>
+        </ul>
+
+        <p class="header">This project is maintained by <a class="header name" href="https://github.com/evilsocket">evilsocket</a></p>
+
+
+      </header>
+      <section>
+        <h1>
+<a name="gibson-" class="anchor" href="#gibson-"><span class="octicon octicon-link"></span></a>Gibson <a href="http://travis-ci.org/evilsocket/gibson"><img src="https://secure.travis-ci.org/evilsocket/gibson.png" alt="Build Status"></a>
+</h1>
+
+<ul>
+<li>To report issues : <a href="http://github.com/evilsocket/gibson/issues">http://github.com/evilsocket/gibson/issues</a>
+</li>
+<li>Gibson website   : <a href="http://gibson-db.in">http://gibson-db.in</a> </li>
+<li>Documentation    : <a href="http://gibson-db.in/documentation.php">http://gibson-db.in/documentation.php</a> </li>
+</ul><p><strong>Table of Contents</strong></p>
+
+<ul>
+<li><a href="#introduction">Introduction</a></li>
+<li><a href="#features">Features</a></li>
+<li><a href="#compilation">Compilation</a></li>
+<li><a href="#configuration">Configuration</a></li>
+<li><a href="#using-the-console-client">Using the console client</a></li>
+<li><a href="http://gibson-db.in/commands.php">Command Reference</a></li>
+<li><a href="http://gibson-db.in/clients.php">Clients</a></li>
+<li><a href="http://gibson-db.in/protocol.php">Protocol Specifications</a></li>
+<li><a href="#data-model">Data Model</a></li>
+<li><a href="#license">License</a></li>
+</ul><hr><h2>
+<a name="introduction" class="anchor" href="#introduction"><span class="octicon octicon-link"></span></a>Introduction</h2>
+
+<p>Gibson is a high efficiency, <a href="#datamodel">tree based</a> memory cache server.
+Normal key-value stores ( memcache, Redis, etc ) uses a hash table as their main data structure, so every key is hashed with a specific algorithm and the resulting hash is used to identify the given value in memory. This approach, although very fast, doesn't allow the user to execute globbing expressions/selections on a given (multiple) keyset, thus resulting on a pure one-by-one access paradigm.
+Gibson is different, it uses a special tree based structure allowing the user to perform operations on multiple key sets using a prefix expression achieving the same performance grades in the worst case, even better on an average case.
+Unlike many other server applications, it's not multithreaded, but it uses multiplexing taking advantace of an event-driven network layer ( just like Node.js, or Nginx using libevent and so on ) which provides higher performances even on low cost hardware.</p>
+
+<p><strong>You need Gibson if:</strong></p>
+
+<ul>
+<li>You need to cache result sets from heavy queries lowering your main database load and response times.</li>
+<li>You want to invalidate or rietrive multiple cached itemshierarchically with a single command given their common prefix, in lower than linear time.</li>
+<li>You need a cache backend which is fast, highly scalable and not redundant as the common key value store.</li>
+</ul><p><strong>You can't use Gibson to:</strong></p>
+
+<ul>
+<li>You can't use Gibson as a drop in replacement for your database, since it is NOT a database but a key value store.</li>
+<li>You need complex data structures such as lists, sets, etc to be cached as they are ( without serializing it ).</li>
+<li>You need to perform sorting on cached items.</li>
+</ul><h2>
+<a name="features" class="anchor" href="#features"><span class="octicon octicon-link"></span></a>Features</h2>
+
+<ul>
+<li>Very fast and with the lowest memory footprint possible</li>
+<li>Fast LZF object compression</li>
+<li>Builtin object Time-To-Live</li>
+<li>Cached object locking and unlocking</li>
+<li>Multiple key set operation with M* operators </li>
+</ul><h2>
+<a name="compilation" class="anchor" href="#compilation"><span class="octicon octicon-link"></span></a>Compilation</h2>
+
+<p>Gibson is still hosted as source code release on Github, in order to run it you will have to compile sources, therefore you will need <strong>git</strong>, <strong>cmake</strong>, <strong>gcc</strong> and <strong>build-essential</strong> packages installed on your computer.</p>
+
+<p>You have two options to obtain the source code, one is cloning the github repository using git:</p>
+
+<pre><code>git clone https://github.com/evilsocket/gibson.git
+</code></pre>
+
+<p>Or you can download the source code archive <a href="https://github.com/evilsocket/gibson/archive/unstable.zip">from here</a>.</p>
+
+<p>Once you got the source code, all you have to do is compile Gibson, the process is pretty straightforward.</p>
+
+<pre><code>$ cd gibson
+$ cmake . [compilation options]
+$ make
+# make install
+</code></pre>
+
+<p>Where <strong>compilation options</strong> might be:</p>
+
+<pre><code>-DWITH_DEBUG=1
+</code></pre>
+
+<p>To compile with debug symbols and without optimizations ( for devs ).</p>
+
+<pre><code>-DWITH_JEMALLOC=1
+</code></pre>
+
+<p>To use the <a href="http://gibson-db.in/blog/gibson-is-now-optionally-jemalloc-powered.html">jemalloc memory allocator</a> instead of the standard one.</p>
+
+<h2>
+<a name="configuration" class="anchor" href="#configuration"><span class="octicon octicon-link"></span></a>Configuration</h2>
+
+<p>After <a href="#compilation">compiling and installing</a> Gibson source code release, you might want to edit the configuration file situated in
+<strong>/etc/gibson/gibson.conf</strong>, even if <a href="https://raw.github.com/evilsocket/gibson/master/gibson.conf">standard values</a> will fit the majority of situations.</p>
+
+<p>Let's see each configuration directive purpose.</p>
+
+<h3>
+<a name="logfile" class="anchor" href="#logfile"><span class="octicon octicon-link"></span></a>logfile</h3>
+
+<p>The log file path, or /dev/stdout to log on the terminal output.</p>
+
+<h3>
+<a name="loglevel" class="anchor" href="#loglevel"><span class="octicon octicon-link"></span></a>loglevel</h3>
+
+<p>Integer number representing the verbosity of the log manager:</p>
+
+<ul>
+<li>0 for <strong>DEBUG</strong> verbosity, every message even debug ones will be logged.</li>
+<li>1 for <strong>INFO</strong> verbosity, only information messages, warning, errors and criticals will be logged.</li>
+<li>2 for <strong>WARNING</strong> verbosity, only warnings, errors and criticals will be logged</li>
+<li>3 for <strong>ERROR</strong> verbosity, only errors and criticals will be logged.</li>
+<li>4 for <strong>CRITICAL</strong> verbosity, only segmentation faults will be logged.</li>
+</ul><h3>
+<a name="logflushrate" class="anchor" href="#logflushrate"><span class="octicon octicon-link"></span></a>logflushrate</h3>
+
+<p>How often to flush logfile, where 1 stands for "flush the log file every new line".</p>
+
+<h3>
+<a name="unix_socket" class="anchor" href="#unix_socket"><span class="octicon octicon-link"></span></a>unix_socket</h3>
+
+<p>The UNIX socket path to use if Gibson will run in a local environment, use the directives <strong>address</strong> and <strong>port</strong> to create
+a TCP server instead.</p>
+
+<h3>
+<a name="address" class="anchor" href="#address"><span class="octicon octicon-link"></span></a>address</h3>
+
+<p>Address to bind the TCP server to.</p>
+
+<h3>
+<a name="port" class="anchor" href="#port"><span class="octicon octicon-link"></span></a>port</h3>
+
+<p>TCP port to use for server listening.</p>
+
+<h3>
+<a name="daemonize" class="anchor" href="#daemonize"><span class="octicon octicon-link"></span></a>daemonize</h3>
+
+<p>If 1 the process server will be daemonized ( put on background ), otherwise will run synchronously with the caller process.</p>
+
+<h3>
+<a name="pidfile" class="anchor" href="#pidfile"><span class="octicon octicon-link"></span></a>pidfile</h3>
+
+<p>File to be used to save the current Gibson process id.</p>
+
+<h3>
+<a name="max_memory" class="anchor" href="#max_memory"><span class="octicon octicon-link"></span></a>max_memory</h3>
+
+<p>Maximum memory to be used by the Gibson server, when this value is reached, the server will try to deallocate old objects to free space ( see <strong>gc_ratio</strong> ) and, if 
+there aren't freeable objects at the moment, will refuse to accept new objects with a <strong>REPL_ERR_MEM</strong> error reply.</p>
+
+<h3>
+<a name="gc_ratio" class="anchor" href="#gc_ratio"><span class="octicon octicon-link"></span></a>gc_ratio</h3>
+
+<p>If <strong>max_memory</strong> is reached, data that is not being accessed in this amount of time ( i.e. gc_ratio 1h = data that is not being accessed in the last hour ) get deleted to release memory for the server.</p>
+
+<h3>
+<a name="max_item_ttl" class="anchor" href="#max_item_ttl"><span class="octicon octicon-link"></span></a>max_item_ttl</h3>
+
+<p>Maximum time-to-live an object can have.</p>
+
+<h3>
+<a name="max_idletime" class="anchor" href="#max_idletime"><span class="octicon octicon-link"></span></a>max_idletime</h3>
+
+<p>Maximum time in seconds a client can be idle ( without read or write operations ), after this period the client connection will be closed.</p>
+
+<h3>
+<a name="max_clients" class="anchor" href="#max_clients"><span class="octicon octicon-link"></span></a>max_clients</h3>
+
+<p>Maximum number of clients Gibson can hadle concurrently.</p>
+
+<h3>
+<a name="max_request_size" class="anchor" href="#max_request_size"><span class="octicon octicon-link"></span></a>max_request_size</h3>
+
+<p>Maximum size of a client request.</p>
+
+<h3>
+<a name="max_key_size" class="anchor" href="#max_key_size"><span class="octicon octicon-link"></span></a>max_key_size</h3>
+
+<p>Maximum size of the key for a Gibson object.</p>
+
+<h3>
+<a name="max_value_size" class="anchor" href="#max_value_size"><span class="octicon octicon-link"></span></a>max_value_size</h3>
+
+<p>Maximum size of the value for a Gibson object.</p>
+
+<h3>
+<a name="max_response_size" class="anchor" href="#max_response_size"><span class="octicon octicon-link"></span></a>max_response_size</h3>
+
+<p>Maximum Gibson response size, used to limit I/O when a M* operator is used.</p>
+
+<h3>
+<a name="compression" class="anchor" href="#compression"><span class="octicon octicon-link"></span></a>compression</h3>
+
+<p>Objects above this size will be compressed in memory.</p>
+
+<h3>
+<a name="cron_period" class="anchor" href="#cron_period"><span class="octicon octicon-link"></span></a>cron_period</h3>
+
+<p>Number of milliseconds between each cron schedule, do not put a value higher than 1000.</p>
+
+<hr><h2>
+<a name="using-the-console-client" class="anchor" href="#using-the-console-client"><span class="octicon octicon-link"></span></a>Using the console client</h2>
+
+<p>Once your Gibson instance is up and running, you might want to download and install its <a href="https://github.com/evilsocket/libgibsonclient">client library</a> which provides the default
+console client too.</p>
+
+<pre><code>$ git clone https://github.com/evilsocket/libgibsonclient.git
+$ cd libgibsonclient
+$ git submodule init
+$ git submodule update
+$ cmake .
+$ make
+# make install
+</code></pre>
+
+<p>The client command line arguments are pretty straightforward:
+    # gibson-cli -h<br>
+    Gibson client utility.</p>
+
+<pre><code>gibson-cli [-h|--help] [-a|--address ADDRESS] [-p|--port PORT] [-u|--unix UNIX_SOCKET_PATH]
+
+  -h, --help                  Print this help and exit.
+  -a, --address ADDRESS       TCP address of Gibson instance.
+  -p, --port PORT             TCP port of Gibson instance.
+  -u, --unix UNIX_SOCKET_PATH Unix socket path of Gibson instance ( overrides TCP arguments ).
+</code></pre>
+
+<p>So if you want to connect to a TCP instance, you will type for instance:</p>
+
+<pre><code>gibson-cli --address 127.0.0.1 --port 10128
+</code></pre>
+
+<p>Or, to connect to a Unix socket instance:</p>
+
+<pre><code>gibson-cli --unix /var/run/gibson.sock
+</code></pre>
+
+<p>Once you are connected, you will see a prompt like this:</p>
+
+<pre><code>type :quit or :q to quit.
+
+127.0.0.1:10128&gt;
+</code></pre>
+
+<p>Now you can start using the client typing the command you want to execute.</p>
+
+<p>For a complete command list ( and their syntax ), refer to the <a href="http://gibson-db.in/protocol.php">protocol specs</a> and/or type the command string
+to see its synax, for instance:</p>
+
+<pre><code>127.0.0.1:10128&gt; set
+ERROR: Invalid parameters, correct syntax is:
+    SET &lt;ttl&gt; &lt;key&gt; &lt;value&gt;
+</code></pre>
+
+<h2>
+<a name="data-model" class="anchor" href="#data-model"><span class="octicon octicon-link"></span></a>Data Model</h2>
+
+<p>Most of the content of this document was taken from <a href="http://en.wikipedia.org/wiki/Trie">this page</a> on Wikipedia.</p>
+
+<p>Unlike many other key value stores, Gibson doesn't use a hash table as its main data structure, but a special type of tree called <strong>Trie</strong></p>
+
+<p>In computer science, a trie, also called digital tree or prefix tree, is an ordered tree data structure that is used to store a dynamic set or associative array where the keys are usually strings. Unlike a binary search tree, no node in the tree stores the key associated with that node; instead, its position in the tree defines the key with which it is associated. All the descendants of a node have a common prefix of the string associated with that node, and the root is associated with the empty string. Values are normally not associated with every node, only with leaves and some inner nodes that correspond to keys of interest. For the space-optimized presentation of prefix tree, see compact prefix tree.</p>
+
+<p>The term trie comes from retrieval. This term was coined by Edward Fredkin, who pronounces it /ˈtriː/ "tree" as in the word retrieval.</p>
+
+<p>In the example shown, keys are listed in the nodes and values below them. Each complete English word has an arbitrary integer value associated with it. A trie can be seen as a deterministic finite automaton, although the symbol on each edge is often implicit in the order of the branches.</p>
+
+<p>It is not necessary for keys to be explicitly stored in nodes. (In the figure, words are shown only to illustrate how the trie works.)</p>
+
+<p>Though tries are most commonly keyed by character strings, they need not be. The same algorithms can easily be adapted to serve similar functions of ordered lists of any construct, e.g., permutations on a list of digits or shapes. In particular, a bitwise trie is keyed on the individual bits making up a short, fixed size of bits such as an integer number or memory address.</p>
+
+<p><img src="http://upload.wikimedia.org/wikipedia/commons/thumb/b/be/Trie_example.svg/250px-Trie_example.svg.png" alt="trie data model">
+A trie for keys "A", "to", "tea", "ted", "ten", "i", "in", and "inn".</p>
+
+<h3>
+<a name="advantages-over-a-hash-table" class="anchor" href="#advantages-over-a-hash-table"><span class="octicon octicon-link"></span></a>Advantages over a Hash Table</h3>
+
+<p>A trie can be used to replace a hash table, over which it has the following advantages:</p>
+
+<ul>
+<li>Looking up data in a trie is faster in the worst case, O(m) time (where m is the length of a search string), compared to an imperfect hash table. An imperfect hash table can have key collisions. A key collision is the hash function mapping of different keys to the same position in a hash table. The worst-case lookup speed in an imperfect hash table is O(N) time, but far more typically is O(1), with O(m) time spent evaluating the hash.</li>
+<li>There are no collisions of different keys in a trie.</li>
+<li>Buckets in a trie which are analogous to hash table buckets that store key collisions are necessary only if a single key is associated with more than one value.</li>
+<li>There is no need to provide a hash function or to change hash functions as more keys are added to a trie.</li>
+<li>A trie can provide an alphabetical ordering of the entries by key.</li>
+</ul><p>Tries do have some drawbacks as well:</p>
+
+<ul>
+<li>Tries can be slower in some cases than hash tables for looking up data, especially if the data is directly accessed on a hard disk drive or some other secondary storage device where the random-access time is high compared to main memory. ( <strong>Not in the Gibson case</strong> )</li>
+<li>Some keys, such as floating point numbers, can lead to long chains and prefixes that are not particularly meaningful. Nevertheless a bitwise trie can handle standard IEEE single and double format floating point numbers. ( <strong>Not in the Gibson case</strong> )</li>
+<li>Some tries can require more space than a hash table, as memory may be allocated for each character in the search string, rather than a single chunk of memory for the whole entry, as in most hash tables.</li>
+</ul><p>For more details refer to <a href="http://en.wikipedia.org/wiki/Trie">this Wikipedia page</a>.</p>
+
+<h2>
+<a name="license" class="anchor" href="#license"><span class="octicon octicon-link"></span></a>License</h2>
+
+<p>Released under the BSD license.<br>
+Copyright © 2013, Simone Margaritelli <a href="mailto:evilsocket@gmail.com">evilsocket@gmail.com</a><br>
+All rights reserved.</p>
+      </section>
+      <footer>
+        <p><small>Hosted on <a href="https://pages.github.com">GitHub Pages</a> using the Dinky theme</small></p>
+      </footer>
+    </div>
+    <!--[if !IE]><script>fixScale(document);</script><![endif]-->
+		          <script type="text/javascript">
+            var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");
+            document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E"));
+          </script>
+          <script type="text/javascript">
+            try {
+              var pageTracker = _gat._getTracker("UA-41235708-1");
+            pageTracker._trackPageview();
+            } catch(err) {}
+          </script>
+
+  </body>
+</html>
